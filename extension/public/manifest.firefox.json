@@ -1,0 +1,41 @@
+{
+    "manifest_version": 3,
+    "name": "WhatsApp CRM Kanban (MVP)",
+    "version": "1.0.0",
+    "description": "Transform WhatsApp Web into a mini CRM with Kanban board",
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting"
+    ],
+    "host_permissions": [
+        "https://web.whatsapp.com/*"
+    ],
+    "background": {
+        "scripts": [
+            "background.js"
+        ]
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://web.whatsapp.com/*"
+            ],
+            "js": [
+                "contentScript.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ],
+    "icons": {
+        "16": "icon.png",
+        "48": "icon.png",
+        "128": "icon.png"
+    },
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "whatsapp-crm@finderbit.com",
+            "strict_min_version": "109.0"
+        }
+    }
+}
