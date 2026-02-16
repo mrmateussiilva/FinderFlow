@@ -3,12 +3,30 @@ import { getCurrentConversationId, getConversationName, waitForWhatsAppReady } f
 import { getConversation } from './utils/storage';
 import { createSidebar } from './vanilla-ui/Sidebar';
 import { createKanbanModal } from './vanilla-ui/Kanban';
+import { createConversationKanbanModal } from './vanilla-ui/ConversationKanban';
 import { createQuickRepliesMenu, insertTextIntoWhatsApp } from './vanilla-ui/QuickReplies';
+import { injectChatListBadges, injectFilterBar, applyChatListFilter } from './vanilla-ui/Injections';
+import { startChatbot } from './vanilla-ui/Chatbot';
+import { sendMessage } from './utils/sendMessage';
 
 console.log('WhatsApp CRM - Content script loading...');
 
+chrome.runtime.onMessage.addListener((msg: { type: string; conversationId?: string; text?: string }, _sender, sendResponse) => {
+    if (msg.type === 'sendScheduled' && msg.conversationId != null && msg.text != null) {
+        const current = getCurrentConversationId();
+        if (current === msg.conversationId) {
+            const ok = sendMessage(msg.text);
+            sendResponse({ success: ok });
+        } else {
+            sendResponse({ success: false });
+        }
+    }
+    return true;
+});
+
 let currentSidebar: HTMLElement | null = null;
 let currentModal: HTMLElement | null = null;
+let currentConversationKanban: HTMLElement | null = null;
 
 function injectCRM() {
     try {
@@ -90,10 +108,15 @@ function injectCRM() {
 
         const kanbanBtn = document.createElement('button');
         kanbanBtn.className = 'crm-menu-item';
-        kanbanBtn.textContent = '📊 Kanban Geral';
+        kanbanBtn.textContent = '📊 Kanban por estágio';
+
+        const conversationKanbanBtn = document.createElement('button');
+        conversationKanbanBtn.className = 'crm-menu-item';
+        conversationKanbanBtn.textContent = '📋 Kanban de conversas';
 
         menu.appendChild(sidebarBtn);
         menu.appendChild(kanbanBtn);
+        menu.appendChild(conversationKanbanBtn);
         appContainer.appendChild(menu);
 
         // Handlers
@@ -168,8 +191,47 @@ function injectCRM() {
             }
         };
 
+        const openConversationKanban = async () => {
+            try {
+                menu.style.display = 'none';
+                if (currentConversationKanban) currentConversationKanban.remove();
+
+                currentConversationKanban = await createConversationKanbanModal(() => {
+                    currentConversationKanban?.remove();
+                    currentConversationKanban = null;
+                });
+                appContainer.appendChild(currentConversationKanban);
+            } catch (err) {
+                console.error('Error opening conversation kanban:', err);
+            }
+        };
+
         sidebarBtn.onclick = openSidebar;
         kanbanBtn.onclick = openKanban;
+        conversationKanbanBtn.onclick = openConversationKanban;
+
+        // Auto-open sidebar when user opens or switches conversation (CRM integrado)
+        let lastAutoOpenConvId: string | null = null;
+        const tryAutoOpenSidebar = () => {
+            const convId = getCurrentConversationId();
+            if (convId && convId !== lastAutoOpenConvId) {
+                lastAutoOpenConvId = convId;
+                openSidebar();
+            }
+            if (!convId) lastAutoOpenConvId = null;
+        };
+        const conversationPanel = document.querySelector('[data-testid="conversation-panel-wrapper"]');
+        if (conversationPanel) {
+            let autoOpenDebounce: ReturnType<typeof setTimeout> | null = null;
+            const debouncedAutoOpen = () => {
+                if (autoOpenDebounce) clearTimeout(autoOpenDebounce);
+                autoOpenDebounce = setTimeout(tryAutoOpenSidebar, 300);
+            };
+            const autoOpenObserver = new MutationObserver(debouncedAutoOpen);
+            autoOpenObserver.observe(conversationPanel, { childList: true, subtree: true });
+            // Open immediately if a conversation is already visible (e.g. page load with chat open)
+            setTimeout(tryAutoOpenSidebar, 800);
+        }
 
         console.log('CRM UI fully injected and ready (Robust Vanilla)!');
     } catch (err) {
@@ -234,5 +296,35 @@ waitForWhatsAppReady().then(() => {
         }
     });
 
+    // --- Deep UI Integration (Step 3) ---
+    console.log('Starting Deep UI Integration phase...');
+
+    // 1. Initial Badge Injection
+    injectChatListBadges();
+
+    // 2. Filter Bar Injection
+    injectFilterBar((selectedStage) => {
+        applyChatListFilter(selectedStage);
+    });
+
+    // 3. Observer for Chat List changes (Virtual Scrolling)
+    // We observe the chat list container to re-inject badges when it changes
+    const chatListObserver = new MutationObserver(() => {
+        // Debounce or just call efficiently
+        injectChatListBadges();
+    });
+
+    const chatList = document.querySelector('[data-testid="chat-list"]');
+    if (chatList) {
+        chatListObserver.observe(chatList, {
+            childList: true,
+            subtree: true
+        });
+        console.log('Chat list observer active');
+    }
+
     console.log('Quick Replies engine ready!');
+
+    startChatbot();
+    console.log('Chatbot watcher started');
 });

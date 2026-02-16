@@ -1,4 +1,19 @@
-import { upsertConversation, getTemplates, upsertTemplate, deleteTemplate, type ConversationData } from '../utils/storage';
+import {
+    upsertConversation,
+    getTemplates,
+    upsertTemplate,
+    deleteTemplate,
+    getBotRules,
+    upsertBotRule,
+    deleteBotRule,
+    getBotEnabled,
+    setBotEnabled,
+    getScheduledMessages,
+    addScheduledMessage,
+    cancelScheduledMessage,
+    type ConversationData,
+    type BotRule
+} from '../utils/storage';
 import { exportToJSON, exportToCSV, importFromJSON } from './DataManagement';
 
 export function createSidebar(conversationId: string, data: ConversationData, onClose: () => void) {
@@ -239,6 +254,187 @@ export function createSidebar(conversationId: string, data: ConversationData, on
     qrForm.appendChild(addQRBtn);
     qrField.appendChild(qrForm);
     content.appendChild(qrField);
+
+    // Chatbot Section
+    const botField = document.createElement('div');
+    botField.className = 'crm-field';
+    botField.style.marginTop = '16px';
+    botField.style.paddingTop = '12px';
+    botField.style.borderTop = '1px solid #eee';
+    const botLabel = document.createElement('label');
+    botLabel.textContent = 'Chatbot (respostas automáticas)';
+    botField.appendChild(botLabel);
+
+    const botToggleWrap = document.createElement('div');
+    botToggleWrap.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 10px;';
+    const botToggle = document.createElement('input');
+    botToggle.type = 'checkbox';
+    botToggle.id = 'crm-bot-toggle';
+    getBotEnabled().then(v => { botToggle.checked = v; });
+    botToggle.onchange = () => setBotEnabled(botToggle.checked);
+    const botToggleLabel = document.createElement('label');
+    botToggleLabel.htmlFor = 'crm-bot-toggle';
+    botToggleLabel.textContent = 'Chatbot ligado';
+    botToggleLabel.style.fontSize = '13px';
+    botToggleWrap.appendChild(botToggle);
+    botToggleWrap.appendChild(botToggleLabel);
+    botField.appendChild(botToggleWrap);
+
+    const botListContainer = document.createElement('div');
+    botListContainer.className = 'crm-bot-list';
+    botListContainer.style.cssText = 'display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;';
+
+    const renderBotList = async () => {
+        botListContainer.innerHTML = '';
+        const rules = await getBotRules();
+        rules.forEach(r => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display: flex; align-items: center; gap: 6px; background: #f9fafb; padding: 8px; border-radius: 6px; border: 1px solid #e5e7eb; font-size: 12px;';
+            const info = document.createElement('div');
+            info.style.flex = '1';
+            info.innerHTML = `<span style="font-weight: 600; color: #764ba2;">${r.triggerType === 'exact' ? '=' : '~'}</span> "${r.trigger}" → ${r.responseText.slice(0, 25)}${r.responseText.length > 25 ? '...' : ''} ${r.active ? '' : '<span style="color:#999">(off)</span>'}`;
+            const toggleBtn = document.createElement('button');
+            toggleBtn.textContent = r.active ? 'Desligar' : 'Ligar';
+            toggleBtn.style.cssText = 'font-size: 10px; padding: 2px 6px; border: 1px solid #764ba2; background: white; color: #764ba2; border-radius: 4px; cursor: pointer;';
+            toggleBtn.onclick = async () => {
+                await upsertBotRule({ ...r, active: !r.active });
+                renderBotList();
+            };
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '×';
+            delBtn.style.cssText = 'background: none; border: none; color: #ef4444; font-size: 16px; cursor: pointer; padding: 0 2px;';
+            delBtn.onclick = async () => {
+                await deleteBotRule(r.id);
+                renderBotList();
+            };
+            row.appendChild(info);
+            row.appendChild(toggleBtn);
+            row.appendChild(delBtn);
+            botListContainer.appendChild(row);
+        });
+    };
+    renderBotList();
+    botField.appendChild(botListContainer);
+
+    const botForm = document.createElement('div');
+    botForm.style.cssText = 'display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #f3f4f6; border-radius: 8px;';
+    const botTriggerType = document.createElement('select');
+    botTriggerType.innerHTML = '<option value="keyword">Palavra-chave</option><option value="exact">Frase exata</option>';
+    botTriggerType.style.fontSize = '12px';
+    const botTriggerInput = document.createElement('input');
+    botTriggerInput.placeholder = 'Palavra ou frase que ativa';
+    botTriggerInput.style.fontSize = '12px';
+    const botResponseInput = document.createElement('textarea');
+    botResponseInput.placeholder = 'Resposta automática...';
+    botResponseInput.style.cssText = 'font-size: 12px; height: 50px; resize: none;';
+    const addBotBtn = document.createElement('button');
+    addBotBtn.textContent = 'Adicionar regra';
+    addBotBtn.style.cssText = 'background: #764ba2; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;';
+    addBotBtn.onclick = async () => {
+        const trigger = botTriggerInput.value.trim();
+        const responseText = botResponseInput.value.trim();
+        if (trigger && responseText) {
+            await upsertBotRule({
+                id: Date.now().toString(),
+                triggerType: botTriggerType.value as BotRule['triggerType'],
+                trigger,
+                responseText,
+                active: true
+            });
+            botTriggerInput.value = '';
+            botResponseInput.value = '';
+            renderBotList();
+        }
+    };
+    botForm.appendChild(botTriggerType);
+    botForm.appendChild(botTriggerInput);
+    botForm.appendChild(botResponseInput);
+    botForm.appendChild(addBotBtn);
+    botField.appendChild(botForm);
+    content.appendChild(botField);
+
+    // Agendamentos Section
+    const schedField = document.createElement('div');
+    schedField.className = 'crm-field';
+    schedField.style.marginTop = '16px';
+    schedField.style.paddingTop = '12px';
+    schedField.style.borderTop = '1px solid #eee';
+    const schedLabel = document.createElement('label');
+    schedLabel.textContent = 'Mensagens agendadas';
+    schedField.appendChild(schedLabel);
+
+    const schedListContainer = document.createElement('div');
+    schedListContainer.className = 'crm-sched-list';
+    schedListContainer.style.cssText = 'display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;';
+
+    const renderSchedList = async () => {
+        schedListContainer.innerHTML = '';
+        const list = await getScheduledMessages();
+        list.forEach(s => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display: flex; align-items: center; gap: 6px; background: #f9fafb; padding: 8px; border-radius: 6px; border: 1px solid #e5e7eb; font-size: 12px;';
+            const dateStr = new Date(s.scheduledAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+            const info = document.createElement('div');
+            info.style.flex = '1';
+            info.textContent = `${dateStr}: ${s.text.slice(0, 30)}${s.text.length > 30 ? '...' : ''}`;
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancelar';
+            cancelBtn.style.cssText = 'font-size: 10px; padding: 2px 6px; border: 1px solid #ef4444; background: white; color: #ef4444; border-radius: 4px; cursor: pointer;';
+            cancelBtn.onclick = async () => {
+                await cancelScheduledMessage(s.id);
+                renderSchedList();
+            };
+            row.appendChild(info);
+            row.appendChild(cancelBtn);
+            schedListContainer.appendChild(row);
+        });
+    };
+    renderSchedList();
+    schedField.appendChild(schedListContainer);
+
+    const schedForm = document.createElement('div');
+    schedForm.style.cssText = 'display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #f3f4f6; border-radius: 8px;';
+    const schedDateInput = document.createElement('input');
+    schedDateInput.type = 'date';
+    schedDateInput.style.fontSize = '12px';
+    const schedTimeInput = document.createElement('input');
+    schedTimeInput.type = 'time';
+    schedTimeInput.style.fontSize = '12px';
+    const schedTextInput = document.createElement('textarea');
+    schedTextInput.placeholder = 'Texto da mensagem...';
+    schedTextInput.style.cssText = 'font-size: 12px; height: 50px; resize: none;';
+    const addSchedBtn = document.createElement('button');
+    addSchedBtn.textContent = 'Agendar mensagem';
+    addSchedBtn.style.cssText = 'background: #764ba2; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;';
+    addSchedBtn.onclick = async () => {
+        const dateVal = schedDateInput.value;
+        const timeVal = schedTimeInput.value;
+        const text = schedTextInput.value.trim();
+        if (!dateVal || !timeVal || !text) return;
+        const [y, m, d] = dateVal.split('-').map(Number);
+        const [h, min] = timeVal.split(':').map(Number);
+        const scheduledAt = new Date(y, m - 1, d, h, min).getTime();
+        if (scheduledAt <= Date.now()) return;
+        const id = Date.now().toString();
+        await addScheduledMessage({
+            id,
+            conversationId,
+            conversationName: data.name,
+            text,
+            scheduledAt
+        });
+        chrome.runtime.sendMessage({ type: 'createScheduleAlarm', id, scheduledAt }).catch(() => {});
+        schedDateInput.value = '';
+        schedTimeInput.value = '';
+        schedTextInput.value = '';
+        renderSchedList();
+    };
+    schedForm.appendChild(schedDateInput);
+    schedForm.appendChild(schedTimeInput);
+    schedForm.appendChild(schedTextInput);
+    schedForm.appendChild(addSchedBtn);
+    schedField.appendChild(schedForm);
+    content.appendChild(schedField);
 
     // Data Management Section
     const dataField = document.createElement('div');
