@@ -95,7 +95,7 @@ export function getCurrentConversationId(): string | null {
 /**
  * Simple hash function for generating stable IDs
  */
-function simpleHash(str: string): string {
+export function simpleHash(str: string): string {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         const char = str.charCodeAt(i);
@@ -106,9 +106,50 @@ function simpleHash(str: string): string {
 }
 
 /**
+ * Get a stable conversation ID from a chat list row (cell-frame-container or list-item-container).
+ * Tries data-id on the row or its ancestors, then falls back to hash of the visible name.
+ * Use this so list badges and filters use the same ID as getCurrentConversationId() when the chat is open.
+ */
+export function getConversationIdFromListRow(chatListElement: Element): string | null {
+    let el: Element | null = chatListElement;
+    while (el) {
+        const dataId = el.getAttribute?.('data-id');
+        if (dataId) return dataId;
+        el = el.parentElement;
+    }
+    const titleEl = chatListElement.querySelector('[data-testid="cell-frame-title"] span');
+    const name = titleEl?.textContent?.trim();
+    if (name) return `hash_${simpleHash(name)}`;
+    return null;
+}
+
+/**
  * Check if a conversation is currently open
  */
 export function isConversationOpen(): boolean {
     const conversationPanel = document.querySelector('[data-testid="conversation-panel-wrapper"]');
     return !!conversationPanel;
+}
+
+/**
+ * Find the chat list row for a conversation (by id or name) and click it to open that chat.
+ */
+export function openConversationInList(conversationId: string, conversationName?: string): boolean {
+    const items = document.querySelectorAll('[data-testid="list-item-container"]');
+    for (const item of items) {
+        const rowId = getConversationIdFromListRow(item);
+        if (rowId === conversationId) {
+            (item as HTMLElement).click();
+            return true;
+        }
+        if (conversationName) {
+            const titleEl = item.querySelector('[data-testid="cell-frame-title"] span');
+            const name = titleEl?.textContent?.trim();
+            if (name === conversationName) {
+                (item as HTMLElement).click();
+                return true;
+            }
+        }
+    }
+    return false;
 }
