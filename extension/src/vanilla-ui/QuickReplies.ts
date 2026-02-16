@@ -1,5 +1,7 @@
 import { getTemplates } from '../utils/storage';
 
+export { insertTextIntoWhatsApp } from '../utils/sendMessage';
+
 /**
  * Creates a floating menu to select and insert quick replies
  */
@@ -66,25 +68,4 @@ export async function createQuickRepliesMenu(onSelect: (text: string) => void) {
     return menu;
 }
 
-/**
- * Helper to insert text into WhatsApp's input field
- * WhatsApp uses Lexical editor, so we need to trigger input events
- */
-export function insertTextIntoWhatsApp(text: string) {
-    const input = document.querySelector('footer div[contenteditable="true"]') as HTMLElement;
-    if (input) {
-        input.focus();
-
-        // Clear current text if it starts with "/" (assuming we are replacing a slash command)
-        if (input.innerText.startsWith('/')) {
-            document.execCommand('selectAll', false);
-            document.execCommand('delete', false);
-        }
-
-        // Use execCommand for better compatibility with Lexical
-        document.execCommand('insertText', false, text);
-
-        // Trigger generic input events just in case
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-}
+// insertTextIntoWhatsApp is exported from '../utils/sendMessage' above
