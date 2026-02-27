@@ -6,7 +6,8 @@
     "permissions": [
         "storage",
         "activeTab",
-        "scripting"
+        "scripting",
+        "alarms"
     ],
     "host_permissions": [
         "https://web.whatsapp.com/*"
@@ -16,6 +17,10 @@
             "background.js"
         ]
     },
+    "sidebar_action": {
+        "default_panel": "side_panel.html",
+        "default_icon": "icon.png"
+    },
     "content_scripts": [
         {
             "matches": [
@@ -23,6 +28,9 @@
             ],
             "js": [
                 "contentScript.js"
+            ],
+            "css": [
+                "crm-theme.css"
             ],
             "run_at": "document_idle"
         }

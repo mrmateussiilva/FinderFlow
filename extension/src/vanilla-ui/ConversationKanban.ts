@@ -7,16 +7,18 @@ import type { Stage } from '../utils/storage';
 import { openConversationInList } from '../utils/dom';
 
 const STAGE_COLORS: Record<Stage, string> = {
-    novo: '#667eea',
-    atendimento: '#764ba2',
+    novo: '#6366f1',
+    qualificado: '#8b5cf6',
     proposta: '#f59e0b',
+    negociacao: '#f97316',
     fechado: '#10b981'
 };
 
 const STAGE_LABELS: Record<Stage, string> = {
-    novo: 'Novo',
-    atendimento: 'Atendimento',
+    novo: 'Novo Lead',
+    qualificado: 'Qualificado',
     proposta: 'Proposta',
+    negociacao: 'Negociação',
     fechado: 'Fechado'
 };
 

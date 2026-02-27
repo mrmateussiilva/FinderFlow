@@ -77,9 +77,10 @@ function Sidebar() {
                 <div className="crm-field">
                     <label>Stage</label>
                     <select value={stage} onChange={(e) => handleStageChange(e.target.value as Stage)}>
-                        <option value="novo">Novo lead</option>
-                        <option value="atendimento">Em atendimento</option>
-                        <option value="proposta">Proposta enviada</option>
+                        <option value="novo">Novo Lead</option>
+                        <option value="qualificado">Qualificado</option>
+                        <option value="proposta">Proposta</option>
+                        <option value="negociacao">Negociação</option>
                         <option value="fechado">Fechado</option>
                     </select>
                 </div>

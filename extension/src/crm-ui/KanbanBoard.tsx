@@ -20,9 +20,10 @@ interface ConversationWithId {
 }
 
 const STAGES: { id: Stage; label: string }[] = [
-    { id: 'novo', label: 'Novo' },
-    { id: 'atendimento', label: 'Atendimento' },
+    { id: 'novo', label: 'Novo Lead' },
+    { id: 'qualificado', label: 'Qualificado' },
     { id: 'proposta', label: 'Proposta' },
+    { id: 'negociacao', label: 'Negociação' },
     { id: 'fechado', label: 'Fechado' },
 ];
 

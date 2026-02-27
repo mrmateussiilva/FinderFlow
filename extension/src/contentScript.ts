@@ -5,7 +5,7 @@ import { createSidebar } from './vanilla-ui/Sidebar';
 import { createKanbanModal } from './vanilla-ui/Kanban';
 import { createConversationKanbanModal } from './vanilla-ui/ConversationKanban';
 import { createQuickRepliesMenu, insertTextIntoWhatsApp } from './vanilla-ui/QuickReplies';
-import { injectChatListBadges, injectFilterBar, applyChatListFilter } from './vanilla-ui/Injections';
+import { injectChatListBadges, injectFilterBar, applyChatListFilter, injectCRMHeader, injectEmptyDashboard, updateDashboardMetrics } from './vanilla-ui/Injections';
 import { startChatbot } from './vanilla-ui/Chatbot';
 import { sendMessage } from './utils/sendMessage';
 
@@ -38,6 +38,16 @@ function injectCRM() {
             return;
         }
 
+        // Inject CRM Dark Theme CSS into main document
+        if (!document.getElementById('crm-dark-theme')) {
+            const themeLink = document.createElement('link');
+            themeLink.id = 'crm-dark-theme';
+            themeLink.rel = 'stylesheet';
+            themeLink.href = chrome.runtime.getURL('crm-theme.css');
+            document.head.appendChild(themeLink);
+            console.log('CRM Dark Theme injected');
+        }
+
         // 1. Floating Button (Directly in body for visibility)
         // First, check if it already exists to avoid duplicates
         if (document.getElementById('crm-floating-button-native')) {
@@ -47,23 +57,25 @@ function injectCRM() {
 
         const floatingButton = document.createElement('button');
         floatingButton.id = 'crm-floating-button-native';
-        floatingButton.textContent = 'CRM';
+        floatingButton.innerHTML = '📊';
         floatingButton.style.cssText = `
       position: fixed;
       bottom: 24px;
       right: 24px;
-      width: 64px;
-      height: 64px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
       color: white;
       border: none;
-      border-radius: 50%;
-      font-size: 14px;
+      border-radius: 16px;
+      font-size: 24px;
       font-weight: 700;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
       z-index: 9999;
-      display: block !important;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
       visibility: visible !important;
     `;
         document.body.appendChild(floatingButton);
@@ -299,6 +311,9 @@ waitForWhatsAppReady().then(() => {
     // --- Deep UI Integration (Step 3) ---
     console.log('Starting Deep UI Integration phase...');
 
+    // 0. Inject CRM Header
+    injectCRMHeader();
+
     // 1. Initial Badge Injection
     injectChatListBadges();
 
@@ -307,11 +322,17 @@ waitForWhatsAppReady().then(() => {
         applyChatListFilter(selectedStage);
     });
 
-    // 3. Observer for Chat List changes (Virtual Scrolling)
+    // 3. Inject Empty Dashboard
+    setTimeout(() => {
+        injectEmptyDashboard();
+    }, 1500);
+
+    // 4. Observer for Chat List changes (Virtual Scrolling)
     // We observe the chat list container to re-inject badges when it changes
     const chatListObserver = new MutationObserver(() => {
         // Debounce or just call efficiently
         injectChatListBadges();
+        updateDashboardMetrics();
     });
 
     const chatList = document.querySelector('[data-testid="chat-list"]');

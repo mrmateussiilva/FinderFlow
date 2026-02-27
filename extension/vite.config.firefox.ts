@@ -23,6 +23,14 @@ export default defineConfig({
                 } catch (e) {
                     console.warn('Icon not found, skipping...')
                 }
+                try {
+                    copyFileSync(
+                        resolve(__dirname, 'src/crm-ui/crm-theme.css'),
+                        resolve(__dirname, 'dist/crm-theme.css')
+                    )
+                } catch (e) {
+                    console.warn('CRM theme CSS not found, skipping...')
+                }
             }
         }
     ],

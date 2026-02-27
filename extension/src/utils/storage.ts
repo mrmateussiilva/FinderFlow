@@ -2,7 +2,7 @@
  * Chrome storage wrapper for CRM data persistence
  */
 
-export type Stage = 'novo' | 'atendimento' | 'proposta' | 'fechado';
+export type Stage = 'novo' | 'qualificado' | 'proposta' | 'negociacao' | 'fechado';
 
 export interface ConversationData {
     name: string;
@@ -13,6 +13,8 @@ export interface ConversationData {
     notes: string;
     stage: Stage;
     lastUpdated: number;
+    dealValue?: number;
+    expectedCloseDate?: number;
 }
 
 export interface Template {
@@ -43,6 +45,15 @@ export interface BotRule {
     active: boolean;
 }
 
+export interface Task {
+    id: string;
+    conversationId?: string;
+    title: string;
+    dueDate: number;
+    done: boolean;
+    createdAt: number;
+}
+
 export interface CRMData {
     conversations: {
         [conversationId: string]: ConversationData;
@@ -51,6 +62,7 @@ export interface CRMData {
     botRules?: BotRule[];
     botEnabled?: boolean;
     scheduledMessages?: ScheduledMessage[];
+    tasks?: Task[];
 }
 
 const STORAGE_KEY = 'crmData';
@@ -68,10 +80,11 @@ export async function getCRMData(): Promise<CRMData> {
                 templates: data.templates || [],
                 botRules: data.botRules ?? [],
                 botEnabled: data.botEnabled ?? false,
-                scheduledMessages: data.scheduledMessages ?? []
+                scheduledMessages: data.scheduledMessages ?? [],
+                tasks: data.tasks ?? []
             } as CRMData;
         }
-        return { conversations: {}, templates: [], botRules: [], botEnabled: false, scheduledMessages: [] };
+        return { conversations: {}, templates: [], botRules: [], botEnabled: false, scheduledMessages: [], tasks: [] };
     } catch (error) {
         console.error('Error getting CRM data:', error);
         return { conversations: {}, templates: [] };
@@ -105,6 +118,8 @@ export async function upsertConversation(
             notes: '',
             stage: 'novo' as Stage,
             lastUpdated: Date.now(),
+            dealValue: undefined,
+            expectedCloseDate: undefined,
         };
 
         data.conversations[conversationId] = {
@@ -276,4 +291,34 @@ export async function updateScheduledMessageStatus(id: string, status: Scheduled
 
 export async function cancelScheduledMessage(id: string): Promise<void> {
     await updateScheduledMessageStatus(id, 'cancelled');
+}
+
+/** Tasks */
+export async function getTasks(): Promise<Task[]> {
+    const data = await getCRMData();
+    return (data.tasks ?? []).slice().sort((a, b) => a.dueDate - b.dueDate);
+}
+
+export async function upsertTask(task: Task): Promise<void> {
+    try {
+        const data = await getCRMData();
+        const list = data.tasks ?? [];
+        const idx = list.findIndex((t) => t.id === task.id);
+        if (idx >= 0) list[idx] = task;
+        else list.push(task);
+        data.tasks = list;
+        await chrome.storage.local.set({ [STORAGE_KEY]: data });
+    } catch (e) {
+        console.error('Error upserting task:', e);
+    }
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+    try {
+        const data = await getCRMData();
+        data.tasks = (data.tasks ?? []).filter((t) => t.id !== taskId);
+        await chrome.storage.local.set({ [STORAGE_KEY]: data });
+    } catch (e) {
+        console.error('Error deleting task:', e);
+    }
 }

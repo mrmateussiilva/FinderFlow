@@ -2,9 +2,10 @@ import { listConversations, upsertConversation } from '../utils/storage';
 import type { ConversationData } from '../utils/storage';
 
 const STAGES = [
-    { id: 'novo', title: 'Novo' },
-    { id: 'atendimento', title: 'Atendimento' },
+    { id: 'novo', title: 'Novo Lead' },
+    { id: 'qualificado', title: 'Qualificado' },
     { id: 'proposta', title: 'Proposta' },
+    { id: 'negociacao', title: 'Negociação' },
     { id: 'fechado', title: 'Fechado' }
 ] as const;
 
